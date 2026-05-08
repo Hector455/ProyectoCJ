@@ -9,15 +9,18 @@ public class EscribirCSV {
 
     private final String archivo = "inventario.csv";
 
-    // Columnas estándar para la interfaz
     private String[] getColumnas() {
         return new String[]{"Código", "Nombre", "Categoría", "Costo", "Precio venta", "Stock Actual", "Stock Min", "Tiempo Ent.", "Demanda Anual", "Estado"};
     }
 
-    // 1. Obtener modelo para la JTable (Lectura y conversión para mostrar al usuario)
     public DefaultTableModel obtenerModelo() {
-        DefaultTableModel modelo = new DefaultTableModel(getColumnas(), 0);
-        
+        DefaultTableModel modelo = new DefaultTableModel(getColumnas(), 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
         File file = new File(archivo);
         if (!file.exists()) return modelo;
 
@@ -26,7 +29,6 @@ public class EscribirCSV {
             while ((linea = br.readLine()) != null) {
                 String[] datos = linea.split(",");
                 if (datos.length == 10) {
-                    // Convertimos códigos técnicos a nombres legibles para la tabla
                     datos[2] = codigoANombre(datos[2]);
                     datos[9] = numeroAEstado(datos[9]);
                     modelo.addRow(datos);
@@ -36,73 +38,68 @@ public class EscribirCSV {
         return modelo;
     }
 
-    // 2. Búsqueda Flexible
-   public DefaultTableModel buscarPorFiltro(String filtro) {
-    DefaultTableModel modelo = new DefaultTableModel(getColumnas(), 0);
-    String busqueda = filtro.toLowerCase().trim();
+    public DefaultTableModel buscarPorFiltro(String filtro) {
+        DefaultTableModel modelo = new DefaultTableModel(getColumnas(), 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+        String busqueda = filtro.toLowerCase().trim();
 
-    File file = new File(archivo);
-    if (!file.exists()) return modelo;
+        File file = new File(archivo);
+        if (!file.exists()) return modelo;
 
-    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
-        String linea;
-        while ((linea = br.readLine()) != null) {
-            String[] datos = linea.split(",");
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
 
-            if (datos.length == 10) {
+                if (datos.length == 10) {
+                    String codigo = datos[0].toLowerCase();
+                    String nombre = datos[1].toLowerCase();
+                    String categoria = codigoANombre(datos[2]).toLowerCase();
 
-                // Datos reales del archivo
-                String codigo = datos[0].toLowerCase();
-                String nombre = datos[1].toLowerCase();
-                String categoria = codigoANombre(datos[2]).toLowerCase();
+                    if (codigo.contains(busqueda) ||
+                        nombre.contains(busqueda) ||
+                        categoria.contains(busqueda)) {
 
-                // 🔥 AQUÍ BUSCA EN TODO
-                if (codigo.contains(busqueda) || 
-                    nombre.contains(busqueda) || 
-                    categoria.contains(busqueda)) {
+                        datos[2] = codigoANombre(datos[2]);
+                        datos[9] = numeroAEstado(datos[9]);
+                        modelo.addRow(datos);
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-                    // Convertir para mostrar en tabla
-                    datos[2] = codigoANombre(datos[2]);
-                    datos[9] = numeroAEstado(datos[9]);
+        return modelo;
+    }
 
-                    modelo.addRow(datos);
+    public void escribir(String id, String nom, String catNom, String cos, String pre, String st, String stMin, String tie, String dem, String estNom) throws IOException {
+        try (PrintWriter pw = new PrintWriter(new FileWriter(archivo, true))) {
+            String linea = id + "," + nom + "," + nombreACodigo(catNom) + "," + cos + "," + pre + "," + st + "," + stMin + "," + tie + "," + dem + "," + estadoANumero(estNom);
+            pw.println(linea);
+        }
+    }
+
+    public void actualizarProducto(String id, String nom, String catNom, String cos, String pre, String st, String stMin, String tie, String dem, String estNom) throws IOException {
+        List<String> lineas = new ArrayList<>();
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                if (linea.startsWith(id + ",")) {
+                    lineas.add(id + "," + nom + "," + nombreACodigo(catNom) + "," + cos + "," + pre + "," + st + "," + stMin + "," + tie + "," + dem + "," + estadoANumero(estNom));
+                } else {
+                    lineas.add(linea);
                 }
             }
         }
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-
-    return modelo;
-}
-
-    // 3. Guardar nuevo producto (Convierte nombre de categoría a código técnico antes de guardar)
-   public void escribir(String id, String nom, String catNom, String cos, String pre, String st, String stMin, String tie, String dem, String estNom) throws IOException {
-    try (PrintWriter pw = new PrintWriter(new FileWriter(archivo, true))) {
-        String linea = id + "," + nom + "," + nombreACodigo(catNom) + "," + cos + "," + pre + "," + st + "," + stMin + "," + tie + "," + dem + "," + estadoANumero(estNom);
-        pw.println(linea);
-    }
-}
-
-    // 4. Actualizar producto existente
-    public void actualizarProducto(String id, String nom, String catNom, String cos, String pre, String st, String stMin, String tie, String dem, String estNom) throws IOException {
-    List<String> lineas = new ArrayList<>();
-    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
-        String linea;
-        while ((linea = br.readLine()) != null) {
-            if (linea.startsWith(id + ",")) {
-                lineas.add(id + "," + nom + "," + nombreACodigo(catNom) + "," + cos + "," + pre + "," + st + "," + stMin + "," + tie + "," + dem + "," + estadoANumero(estNom));
-            } else {
-                lineas.add(linea);
-            }
+        try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
+            for (String l : lineas) pw.println(l);
         }
     }
-    try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
-        for (String l : lineas) pw.println(l);
-    }
-}
-
-    // --- MÉTODOS DE CONVERSIÓN TÉCNICA ---
 
     public String nombreACodigo(String nombre) {
         switch (nombre) {
@@ -163,4 +160,186 @@ public class EscribirCSV {
         } catch (IOException e) { }
         return false;
     }
+    public String obtenerSiguienteMovimiento() {
+    File file = new File("encabezado.csv"); // archivo de movimientos
+
+    int ultimo = 0;
+
+    if (!file.exists()) {
+        return "0001"; // si no existe empieza en 1
+    }
+
+    try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+        String linea;
+
+        while ((linea = br.readLine()) != null) {
+            String[] datos = linea.split(",");
+
+            if (datos.length > 0) {
+                try {
+                    int num = Integer.parseInt(datos[0]);
+                    if (num > ultimo) {
+                        ultimo = num;
+                    }
+                } catch (NumberFormatException e) {
+                    // ignora errores
+                }
+            }
+        }
+
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+
+    ultimo++;
+
+    return String.format("%04d", ultimo); // 0001, 0002, etc
+}
+    public void guardarEncabezado(String noMov, String fecha, String tipo, String motivo) throws IOException {
+
+    File file = new File("encabezado.csv");
+
+    try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+        pw.println(noMov + "," + fecha + "," + tipo + "," + motivo);
+    }
+}
+    public void guardarDetalle(String noMov, String codigo, int cantidad) throws IOException {
+
+    File file = new File("detalle.csv");
+
+    try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+        pw.println(noMov + "," + codigo + "," + cantidad);
+    }
+}
+    public String obtenerCodigoPorNombre(String nombreBuscado) {
+
+    File file = new File(archivo);
+
+    if (!file.exists()) return "";
+
+    try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+
+        String linea;
+
+        while ((linea = br.readLine()) != null) {
+
+            String[] datos = linea.split(",");
+
+            if (datos.length >= 2) {
+
+                String codigo = datos[0];
+                String nombre = datos[1];
+
+                if (nombre.equalsIgnoreCase(nombreBuscado)) {
+                    return codigo;
+                }
+            }
+        }
+
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+
+    return "";
+}
+    public void actualizarStock(String id, int delta) throws IOException {
+    List<String> lineas = new ArrayList<>();
+
+    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+        String linea;
+        while ((linea = br.readLine()) != null) {
+            String[] datos = linea.split(",");
+            if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
+                int stockActual = Integer.parseInt(datos[5].trim());
+                int nuevoStock = stockActual + delta;
+                if (nuevoStock < 0) nuevoStock = 0; // seguridad
+                datos[5] = String.valueOf(nuevoStock);
+                lineas.add(String.join(",", datos));
+            } else {
+                lineas.add(linea);
+            }
+        }
+    }
+
+    try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
+        for (String l : lineas) pw.println(l);
+    }
+}
+        public int[] obtenerStockYEstado(String id) {
+    // retorna [stockActual, stockMin, estado]
+    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+        String linea;
+        while ((linea = br.readLine()) != null) {
+            String[] datos = linea.split(",");
+            if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
+                int stockActual = Integer.parseInt(datos[5].trim());
+                int stockMin    = Integer.parseInt(datos[6].trim());
+                int estado      = Integer.parseInt(datos[9].trim()); // 1=activo 0=desactivado
+                return new int[]{stockActual, stockMin, estado};
+            }
+        }
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+    return new int[]{0, 0, 1}; // default seguro
+}
+           public void reemplazarStock(String id, int nuevoStock) throws IOException {
+
+    if (nuevoStock < 0) {
+        nuevoStock = 0;
+    }
+
+    List<String> lineas = new ArrayList<>();
+
+    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+        String linea;
+        while ((linea = br.readLine()) != null) {
+            String[] datos = linea.split(",");
+            if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
+                datos[5] = String.valueOf(nuevoStock);
+                lineas.add(String.join(",", datos));
+            } else {
+                lineas.add(linea);
+            }
+        }
+    }
+
+    try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
+        for (String l : lineas) pw.println(l);
+    }
+}
+            public void guardarDetalleLote(List<String> detalles) throws IOException {
+
+    File file = new File("detalle.csv");
+
+    try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+        for (String det : detalles) {
+            pw.println(det);
+        }
+    }
+}
+            public boolean todosLosCodigosExisten(List<String> codigos) {
+
+    for (String codigo : codigos) {
+        if (!existeCodigo(codigo)) {
+            return false;
+        }
+    }
+
+    return true;
+}
+            public boolean validarDetalles(List<String> codigos, DefaultTableModel modelo) {
+
+    for (int i = 0; i < modelo.getRowCount(); i++) {
+
+        int cantidad = Integer.parseInt(modelo.getValueAt(i, 0).toString());
+        String codigo = codigos.get(i);
+
+        if (cantidad <= 0) return false;
+
+        if (!existeCodigo(codigo)) return false;
+    }
+
+    return true;
+}
 }
