@@ -23,6 +23,7 @@ TableRowSorter<DefaultTableModel> sorter;
     /**
      * Creates new form InterBonita
      */
+private final ManejoDeConfiguracion config = new ManejoDeConfiguracion();
  private javax.swing.JButton botonActivo = null;      // submenú
 private javax.swing.JButton botonMenuActivo = null; // menú principal
      private final EscribirCSV gestor = new EscribirCSV();
@@ -79,7 +80,7 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
    public InterBonita() {
     initComponents();
     
- 
+    configurarNavegacionConfiguracion();
     configurarSpinner();
     configurarTablaHistorial();
  
@@ -131,6 +132,7 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
     configurarBotonMenu(btnInicio, () -> {
         jPanelCatalogo.setVisible(false);
         jPanelMovimientos.setVisible(false);
+        jPanelConfiguracion.setVisible(false);
         jPanelInicio.setVisible(true);
     });
  
@@ -143,14 +145,17 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
     configurarBotonMenu(btnMov, () -> {
         jPanelInicio.setVisible(false);
         jPanelCatalogo.setVisible(false);
+        jPanelConfiguracion.setVisible(false);
         jPanelMovimientos.setVisible(true);
         mostrarPanelMovimiento(jButtonRegisM, jPanelRegistrarM);
     });
     configurarBotonMenu(btnMov1, () -> {
-        jPanelInicio.setVisible(false);
-        jPanelCatalogo.setVisible(false);
-        jPanelMovimientos.setVisible(false);
-       jPanel3.setVisible(true);
+          jPanelInicio.setVisible(false);
+    jPanelCatalogo.setVisible(false);
+    jPanelMovimientos.setVisible(false);
+    jPanelConfiguracion.setVisible(true);
+    cargarPanelConfiguracion();
+
         
     });
  
@@ -163,6 +168,54 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
  
     setLocationRelativeTo(null);
 }
+   private void configurarNavegacionConfiguracion() {
+
+    javax.swing.JTextField[] campos = {
+        jTextFCostoPedido,
+        jTextFCostoMantenimiento,
+        jTextFTiempoEntrega
+    };
+
+    for (javax.swing.JTextField campo : campos) {
+
+        // Selecciona todo al recibir foco (Tab, Enter o clic)
+        campo.addFocusListener(new java.awt.event.FocusAdapter() {
+            @Override
+            public void focusGained(java.awt.event.FocusEvent evt) {
+                javax.swing.SwingUtilities.invokeLater(campo::selectAll);
+            }
+        });
+
+        // Enter avanza al siguiente o guarda si es el último
+        campo.addActionListener(evt -> {
+            int actual = java.util.Arrays.asList(campos).indexOf(campo);
+            if (actual < campos.length - 1) {
+                campos[actual + 1].requestFocusInWindow();
+            } else {
+                jButtonGuardarConfig.doClick();
+            }
+        });
+    }
+}
+  private void cargarPanelConfiguracion() {
+    double[] valores = config.leerConfiguracion();   // {0,0,0} si no existe
+
+    // Mostrar con formato
+    jTextFCostoPedido.setText(config.formatearDinero(valores[0]));
+    jTextFCostoMantenimiento.setText(config.formatearDinero(valores[1]));
+    jTextFTiempoEntrega.setText(String.valueOf((int) valores[2]));
+
+    // Habilitar edición
+    jTextFCostoPedido.setEditable(true);
+    jTextFCostoMantenimiento.setEditable(true);
+    jTextFTiempoEntrega.setEditable(true);
+
+    // Focus en el primero con texto seleccionado
+    javax.swing.SwingUtilities.invokeLater(() -> {
+        jTextFCostoPedido.requestFocusInWindow();
+        jTextFCostoPedido.selectAll();
+    });
+} 
     private void configurarBotonNav(javax.swing.JButton boton, Runnable accion) {
     boton.addMouseListener(new java.awt.event.MouseAdapter() {
         @Override
@@ -742,7 +795,17 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
         btnMov1 = new javax.swing.JButton();
         jPanelContenedor = new javax.swing.JPanel();
         jPanelInicio = new javax.swing.JPanel();
-        jPanel2 = new javax.swing.JPanel();
+        jPanelConfiguracion = new javax.swing.JPanel();
+        jPanelConfigInter = new javax.swing.JPanel();
+        jLabelNMov1 = new javax.swing.JLabel();
+        jTextFCostoPedido = new javax.swing.JTextField();
+        jTextFCostoMantenimiento = new javax.swing.JTextField();
+        jLabelNMov2 = new javax.swing.JLabel();
+        jTextFTiempoEntrega = new javax.swing.JTextField();
+        jLabelNMov3 = new javax.swing.JLabel();
+        jButtonGuardarConfig = new javax.swing.JButton();
+        jButtonCanelar = new javax.swing.JButton();
+        jLabel9 = new javax.swing.JLabel();
         jPanelCatalogo = new javax.swing.JPanel();
         jLabel2 = new javax.swing.JLabel();
         jLabel4 = new javax.swing.JLabel();
@@ -895,8 +958,8 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
         btnMov1.setBackground(new java.awt.Color(255, 255, 255));
         btnMov1.setFont(new java.awt.Font("Segoe UI", 1, 12)); // NOI18N
         btnMov1.setForeground(new java.awt.Color(60, 64, 67));
-        btnMov1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/simplificado.png"))); // NOI18N
-        btnMov1.setText("MOVIMIENTOS INVENTARIO");
+        btnMov1.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/analitica.png"))); // NOI18N
+        btnMov1.setText("CONFIGURACION");
         btnMov1.setBorderPainted(false);
         btnMov1.setContentAreaFilled(false);
         btnMov1.setFocusPainted(false);
@@ -978,18 +1041,146 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
 
         jPanelContenedor.add(jPanelInicio, "card2");
 
-        javax.swing.GroupLayout jPanel2Layout = new javax.swing.GroupLayout(jPanel2);
-        jPanel2.setLayout(jPanel2Layout);
-        jPanel2Layout.setHorizontalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 1146, Short.MAX_VALUE)
+        jPanelConfigInter.setBackground(new java.awt.Color(255, 255, 255));
+
+        jLabelNMov1.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
+        jLabelNMov1.setForeground(new java.awt.Color(0, 0, 0));
+        jLabelNMov1.setText("Costo por pedido");
+
+        jTextFCostoPedido.setEditable(false);
+        jTextFCostoPedido.setBackground(new java.awt.Color(255, 255, 255));
+        jTextFCostoPedido.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jTextFCostoPedido.setForeground(new java.awt.Color(0, 0, 0));
+        jTextFCostoPedido.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
+
+        jTextFCostoMantenimiento.setEditable(false);
+        jTextFCostoMantenimiento.setBackground(new java.awt.Color(255, 255, 255));
+        jTextFCostoMantenimiento.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jTextFCostoMantenimiento.setForeground(new java.awt.Color(0, 0, 0));
+        jTextFCostoMantenimiento.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
+
+        jLabelNMov2.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
+        jLabelNMov2.setForeground(new java.awt.Color(0, 0, 0));
+        jLabelNMov2.setText("costo de mantenimiento");
+
+        jTextFTiempoEntrega.setEditable(false);
+        jTextFTiempoEntrega.setBackground(new java.awt.Color(255, 255, 255));
+        jTextFTiempoEntrega.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jTextFTiempoEntrega.setForeground(new java.awt.Color(0, 0, 0));
+        jTextFTiempoEntrega.setHorizontalAlignment(javax.swing.JTextField.RIGHT);
+
+        jLabelNMov3.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
+        jLabelNMov3.setForeground(new java.awt.Color(0, 0, 0));
+        jLabelNMov3.setText(" Tiempo de entrega");
+
+        jButtonGuardarConfig.setBackground(new java.awt.Color(25, 118, 210));
+        jButtonGuardarConfig.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
+        jButtonGuardarConfig.setForeground(new java.awt.Color(255, 255, 255));
+        jButtonGuardarConfig.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/disquete.png"))); // NOI18N
+        jButtonGuardarConfig.setText("Guardar");
+        jButtonGuardarConfig.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(25, 118, 210)));
+        jButtonGuardarConfig.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        jButtonGuardarConfig.setFocusPainted(false);
+        jButtonGuardarConfig.setHorizontalTextPosition(javax.swing.SwingConstants.RIGHT);
+        jButtonGuardarConfig.setIconTextGap(12);
+        jButtonGuardarConfig.setPreferredSize(new java.awt.Dimension(140, 45));
+        jButtonGuardarConfig.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButtonGuardarConfigActionPerformed(evt);
+            }
+        });
+
+        jButtonCanelar.setBackground(new java.awt.Color(220, 53, 69));
+        jButtonCanelar.setFont(new java.awt.Font("Segoe UI", 1, 14)); // NOI18N
+        jButtonCanelar.setForeground(new java.awt.Color(255, 255, 255));
+        jButtonCanelar.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/volver.png"))); // NOI18N
+        jButtonCanelar.setText("Cancelar");
+        jButtonCanelar.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(25, 118, 210)));
+        jButtonCanelar.setCursor(new java.awt.Cursor(java.awt.Cursor.HAND_CURSOR));
+        jButtonCanelar.setFocusPainted(false);
+        jButtonCanelar.setHorizontalTextPosition(javax.swing.SwingConstants.RIGHT);
+        jButtonCanelar.setIconTextGap(12);
+        jButtonCanelar.setPreferredSize(new java.awt.Dimension(140, 45));
+        jButtonCanelar.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jButtonCanelarActionPerformed(evt);
+            }
+        });
+
+        javax.swing.GroupLayout jPanelConfigInterLayout = new javax.swing.GroupLayout(jPanelConfigInter);
+        jPanelConfigInter.setLayout(jPanelConfigInterLayout);
+        jPanelConfigInterLayout.setHorizontalGroup(
+            jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanelConfigInterLayout.createSequentialGroup()
+                .addGroup(jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanelConfigInterLayout.createSequentialGroup()
+                        .addContainerGap(javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addComponent(jButtonCanelar, javax.swing.GroupLayout.PREFERRED_SIZE, 131, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addGap(18, 18, 18)
+                        .addComponent(jButtonGuardarConfig, javax.swing.GroupLayout.PREFERRED_SIZE, 131, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanelConfigInterLayout.createSequentialGroup()
+                        .addGap(81, 81, 81)
+                        .addGroup(jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabelNMov1)
+                            .addComponent(jTextFCostoPedido, javax.swing.GroupLayout.PREFERRED_SIZE, 200, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED, 27, Short.MAX_VALUE)
+                        .addGroup(jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabelNMov2)
+                            .addComponent(jTextFCostoMantenimiento, javax.swing.GroupLayout.PREFERRED_SIZE, 225, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(35, 35, 35)
+                        .addGroup(jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabelNMov3)
+                            .addComponent(jTextFTiempoEntrega, javax.swing.GroupLayout.PREFERRED_SIZE, 240, javax.swing.GroupLayout.PREFERRED_SIZE))))
+                .addGap(101, 101, 101))
         );
-        jPanel2Layout.setVerticalGroup(
-            jPanel2Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
-            .addGap(0, 728, Short.MAX_VALUE)
+        jPanelConfigInterLayout.setVerticalGroup(
+            jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(javax.swing.GroupLayout.Alignment.TRAILING, jPanelConfigInterLayout.createSequentialGroup()
+                .addGap(79, 79, 79)
+                .addGroup(jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabelNMov1)
+                    .addComponent(jLabelNMov2)
+                    .addComponent(jLabelNMov3))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addGroup(jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jTextFTiempoEntrega)
+                    .addComponent(jTextFCostoMantenimiento)
+                    .addComponent(jTextFCostoPedido))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanelConfigInterLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jButtonGuardarConfig, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jButtonCanelar, javax.swing.GroupLayout.PREFERRED_SIZE, 49, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(16, 16, 16))
         );
 
-        jPanelContenedor.add(jPanel2, "card4");
+        jLabel9.setHorizontalAlignment(javax.swing.SwingConstants.CENTER);
+        jLabel9.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/analitica (1).png"))); // NOI18N
+
+        javax.swing.GroupLayout jPanelConfiguracionLayout = new javax.swing.GroupLayout(jPanelConfiguracion);
+        jPanelConfiguracion.setLayout(jPanelConfiguracionLayout);
+        jPanelConfiguracionLayout.setHorizontalGroup(
+            jPanelConfiguracionLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanelConfiguracionLayout.createSequentialGroup()
+                .addGroup(jPanelConfiguracionLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanelConfiguracionLayout.createSequentialGroup()
+                        .addGap(91, 91, 91)
+                        .addComponent(jPanelConfigInter, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addGroup(jPanelConfiguracionLayout.createSequentialGroup()
+                        .addGap(378, 378, 378)
+                        .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, 221, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addContainerGap(146, Short.MAX_VALUE))
+        );
+        jPanelConfiguracionLayout.setVerticalGroup(
+            jPanelConfiguracionLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanelConfiguracionLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jLabel9, javax.swing.GroupLayout.PREFERRED_SIZE, 130, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addComponent(jPanelConfigInter, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(372, Short.MAX_VALUE))
+        );
+
+        jPanelContenedor.add(jPanelConfiguracion, "card4");
 
         jLabel2.setFont(new java.awt.Font("Segoe UI", 1, 24)); // NOI18N
         jLabel2.setForeground(new java.awt.Color(0, 0, 0));
@@ -2148,6 +2339,78 @@ private void limpiarMovimiento() {
     private void btnMov1ActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnMov1ActionPerformed
         // TODO add your handling code here:
     }//GEN-LAST:event_btnMov1ActionPerformed
+
+    private void jButtonGuardarConfigActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonGuardarConfigActionPerformed
+        // TODO add your handling code here:
+        String txtPedido        = jTextFCostoPedido.getText().trim();
+    String txtMantenimiento = jTextFCostoMantenimiento.getText().trim();
+    String txtTiempo        = jTextFTiempoEntrega.getText().trim();
+
+    // ── Validar costo por pedido ──────────────────────────────────────────
+    if (!config.esDineroValido(txtPedido)) {
+        javax.swing.JOptionPane.showMessageDialog(this,
+            "El costo por pedido debe ser un valor numérico mayor que 0.",
+            "Validación", javax.swing.JOptionPane.WARNING_MESSAGE);
+        jTextFCostoPedido.requestFocusInWindow();
+        jTextFCostoPedido.selectAll();
+        return;
+    }
+
+    // ── Validar costo de mantenimiento ────────────────────────────────────
+    if (!config.esDineroValido(txtMantenimiento)) {
+        javax.swing.JOptionPane.showMessageDialog(this,
+            "El costo de mantenimiento debe ser un valor numérico mayor que 0.",
+            "Validación", javax.swing.JOptionPane.WARNING_MESSAGE);
+        jTextFCostoMantenimiento.requestFocusInWindow();
+        jTextFCostoMantenimiento.selectAll();
+        return;
+    }
+
+    // ── Validar tiempo de entrega (entero, sin decimales) ─────────────────
+    if (!config.esTiempoValido(txtTiempo)) {
+        javax.swing.JOptionPane.showMessageDialog(this,
+            "El tiempo de entrega debe ser un número entero mayor que 0\n"
+            + "y no puede contener decimales.",
+            "Validación", javax.swing.JOptionPane.WARNING_MESSAGE);
+        jTextFTiempoEntrega.requestFocusInWindow();
+        jTextFTiempoEntrega.selectAll();
+        return;
+    }
+
+    // ── Parsear valores ya validados ──────────────────────────────────────
+    double costoPedido        = Double.parseDouble(txtPedido.replace(",", "."));
+    double costoMantenimiento = Double.parseDouble(txtMantenimiento.replace(",", "."));
+    int    tiempoEntrega      = Integer.parseInt(txtTiempo);
+
+    // ── Guardar ───────────────────────────────────────────────────────────
+    try {
+        config.guardarConfiguracion(costoPedido, costoMantenimiento, tiempoEntrega);
+
+        // Actualizar campos con formato limpio
+        jTextFCostoPedido.setText(config.formatearDinero(costoPedido));
+        jTextFCostoMantenimiento.setText(config.formatearDinero(costoMantenimiento));
+        jTextFTiempoEntrega.setText(String.valueOf(tiempoEntrega));
+
+        javax.swing.JOptionPane.showMessageDialog(this,
+            "Configuración guardada correctamente.",
+            "Éxito", javax.swing.JOptionPane.INFORMATION_MESSAGE);
+
+    } catch (IOException e) {
+        e.printStackTrace();
+        javax.swing.JOptionPane.showMessageDialog(this,
+            "Error al guardar la configuración: " + e.getMessage(),
+            "Error", javax.swing.JOptionPane.ERROR_MESSAGE);
+    }
+    javax.swing.SwingUtilities.invokeLater(() -> {
+    jTextFCostoPedido.requestFocusInWindow();
+    jTextFCostoPedido.selectAll();
+});
+    }//GEN-LAST:event_jButtonGuardarConfigActionPerformed
+
+    private void jButtonCanelarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonCanelarActionPerformed
+        // TODO add your handling code here:
+        cargarPanelConfiguracion();
+    }//GEN-LAST:event_jButtonCanelarActionPerformed
 private void filtrarEnTiempoReal() {
     String texto = jTexBuscaCod.getText();
 
@@ -2207,7 +2470,9 @@ private void filtrarEnTiempoReal() {
     private javax.swing.JButton jButtonAgregar;
     private javax.swing.JButton jButtonAjusteStock;
     private javax.swing.JButton jButtonBuscaCodM;
+    private javax.swing.JButton jButtonCanelar;
     private javax.swing.JButton jButtonEliminarDeT;
+    private javax.swing.JButton jButtonGuardarConfig;
     private javax.swing.JButton jButtonGuardarMov;
     private javax.swing.JButton jButtonHistorialM;
     private javax.swing.JButton jButtonProductoB;
@@ -2224,17 +2489,22 @@ private void filtrarEnTiempoReal() {
     private javax.swing.JLabel jLabel6;
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
+    private javax.swing.JLabel jLabel9;
     private javax.swing.JLabel jLabelCantidad;
     private javax.swing.JLabel jLabelCodig;
     private javax.swing.JLabel jLabelFecha;
     private javax.swing.JLabel jLabelMotivo;
     private javax.swing.JLabel jLabelNMov;
+    private javax.swing.JLabel jLabelNMov1;
+    private javax.swing.JLabel jLabelNMov2;
+    private javax.swing.JLabel jLabelNMov3;
     private javax.swing.JLabel jLabelNombreP;
     private javax.swing.JLabel jLabelTipo;
     private javax.swing.JPanel jPanel1;
-    private javax.swing.JPanel jPanel2;
     private javax.swing.JPanel jPanelBotonesStok;
     private javax.swing.JPanel jPanelCatalogo;
+    private javax.swing.JPanel jPanelConfigInter;
+    private javax.swing.JPanel jPanelConfiguracion;
     private javax.swing.JPanel jPanelContenedor;
     private javax.swing.JPanel jPanelEncabezado;
     private javax.swing.JPanel jPanelHistorial;
@@ -2259,9 +2529,12 @@ private void filtrarEnTiempoReal() {
     private javax.swing.JTextField jTexBuscaCod;
     private javax.swing.JTextField jTexBuscaCodHistorial;
     private javax.swing.JTextField jTextCodBuscar;
+    private javax.swing.JTextField jTextFCostoMantenimiento;
+    private javax.swing.JTextField jTextFCostoPedido;
     private javax.swing.JTextField jTextFFecha1;
     private javax.swing.JTextField jTextFMotivo;
     private javax.swing.JTextField jTextFNoMov;
     private javax.swing.JTextField jTextFNombreProd;
+    private javax.swing.JTextField jTextFTiempoEntrega;
     // End of variables declaration//GEN-END:variables
 }

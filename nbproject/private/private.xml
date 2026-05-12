@@ -5,9 +5,11 @@
         <group>
             <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/inventario.csv</file>
             <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/src/proyectocbjc/EscribirCSV.java</file>
+            <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/src/proyectocbjc/ManejoDeConfiguracion.java</file>
+            <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/ConfiguracionCsv.csv</file>
+            <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/src/proyectocbjc/InterBonita.java</file>
             <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/encabezado.csv</file>
             <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/detalle.csv</file>
-            <file>file:/C:/Users/LENOVO/Documents/NetBeansProjects/ProyectoCbJc/src/proyectocbjc/InterBonita.java</file>
         </group>
     </open-files>
 </project-private>
