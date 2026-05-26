@@ -16,17 +16,16 @@ import javax.swing.table.TableRowSorter;
  * @author LENOVO
  */
 public class InterBonita extends javax.swing.JFrame {
-    java.util.List<String> codigosTabla = new java.util.ArrayList<>();
+   java.util.List<String> codigosTabla = new java.util.ArrayList<>();
     DefaultTableModel modeloOriginal;
-TableRowSorter<DefaultTableModel> sorter;
+    TableRowSorter<DefaultTableModel> sorter;
 
-    /**
-     * Creates new form InterBonita
-     */
-private final ManejoDeConfiguracion config = new ManejoDeConfiguracion();
- private javax.swing.JButton botonActivo = null;      // submenú
-private javax.swing.JButton botonMenuActivo = null; // menú principal
-     private final EscribirCSV gestor = new EscribirCSV();
+    private final ManejoDeConfiguracion config = new ManejoDeConfiguracion();
+    private javax.swing.JButton botonActivo = null;
+    private javax.swing.JButton botonMenuActivo = null;
+    private final EscribirCSV gestor = new EscribirCSV();
+
+    private ManejoModuloInventario analisis;
      
     private void configurarBuscador() {
 
@@ -79,34 +78,47 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
     
    public InterBonita() {
     initComponents();
-    
+
     configurarNavegacionConfiguracion();
     configurarSpinner();
     configurarTablaHistorial();
- 
+
+    // MODULO ANALISIS INVENTARIO
+    analisis = new ManejoModuloInventario(
+        jTexFiltroCod,
+        jTexFiltroNom,
+        jComboFilttoCat,
+        jTableProductosA,
+        jTableHistorialSalidas,
+        jLabelConsumoTotal,
+        jLabelBajoStock,
+        jLabelReorden,
+        jLabelSobreInventario,
+            jPanelAnalGrafica
+    );
+
     jTextFNoMov.setEditable(false);
     jTextFFecha1.setEditable(false);
- 
+
     LocalDate hoy = LocalDate.now();
     jTextFNoMov.setText(gestor.obtenerSiguienteMovimiento());
- 
+
     DateTimeFormatter formato = DateTimeFormatter.ofPattern("dd/MM/yyyy");
     jTextFFecha1.setText(hoy.format(formato));
- 
+
     configurarTablaMovimientos();
- 
-    // 🔥 SUBMENÚ MOVIMIENTOS
+
+    // SUBMENÚ MOVIMIENTOS
     configurarBotonNav(jButtonRegisM, () -> {
         mostrarPanelMovimiento(jButtonRegisM, jPanelRegistrarM);
     });
- 
+
     configurarBotonNav(jButtonAjusteStock, () -> {
         mostrarPanelMovimiento(jButtonAjusteStock, jPanelStokA);
         cargarDatosStock("TODOS");
         marcarBotonStockActivo(jButtonProductosT);
     });
- 
-    // 🔥 AQUÍ ESTÁ EL CAMBIO
+
     configurarBotonNav(jButtonHistorialM, () -> {
         mostrarPanelMovimiento(jButtonHistorialM, jPanelHistorial);
 
@@ -114,58 +126,73 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
             jTexBuscaCodHistorial.requestFocusInWindow();
         });
     });
- 
-    // 🔹 Estilo botones submenú
+
+    // ESTILO BOTONES SUBMENÚ
     jButtonRegisM.setContentAreaFilled(false);
     jButtonRegisM.setBorderPainted(false);
     jButtonRegisM.setFocusPainted(false);
- 
+
     jButtonAjusteStock.setContentAreaFilled(false);
     jButtonAjusteStock.setBorderPainted(false);
     jButtonAjusteStock.setFocusPainted(false);
- 
+
     jButtonHistorialM.setContentAreaFilled(false);
     jButtonHistorialM.setBorderPainted(false);
     jButtonHistorialM.setFocusPainted(false);
- 
-    // 🔥 MENÚ PRINCIPAL
+
+    // MENÚ PRINCIPAL
     configurarBotonMenu(btnInicio, () -> {
         jPanelCatalogo.setVisible(false);
         jPanelMovimientos.setVisible(false);
         jPanelConfiguracion.setVisible(false);
+        jPanelAnal.setVisible(false);
         jPanelInicio.setVisible(true);
     });
- 
+
     configurarBotonMenu(btnCatalogo, () -> {
         jPanelInicio.setVisible(false);
         jPanelMovimientos.setVisible(false);
+        jPanelConfiguracion.setVisible(false);
+        jPanelAnal.setVisible(false);
         jPanelCatalogo.setVisible(true);
     });
- 
+
     configurarBotonMenu(btnMov, () -> {
         jPanelInicio.setVisible(false);
         jPanelCatalogo.setVisible(false);
         jPanelConfiguracion.setVisible(false);
+        jPanelAnal.setVisible(false);
         jPanelMovimientos.setVisible(true);
         mostrarPanelMovimiento(jButtonRegisM, jPanelRegistrarM);
     });
-    configurarBotonMenu(btnMov1, () -> {
-          jPanelInicio.setVisible(false);
-    jPanelCatalogo.setVisible(false);
-    jPanelMovimientos.setVisible(false);
-    jPanelConfiguracion.setVisible(true);
-    cargarPanelConfiguracion();
 
-        
+    configurarBotonMenu(btnMov1, () -> {
+        jPanelInicio.setVisible(false);
+        jPanelCatalogo.setVisible(false);
+        jPanelMovimientos.setVisible(false);
+        jPanelAnal.setVisible(false);
+        jPanelConfiguracion.setVisible(true);
+        cargarPanelConfiguracion();
     });
- 
+
+    configurarBotonMenu(btnAnali, () -> {
+        jPanelInicio.setVisible(false);
+        jPanelCatalogo.setVisible(false);
+        jPanelMovimientos.setVisible(false);
+        jPanelConfiguracion.setVisible(false);
+        jPanelAnal.setVisible(true);
+
+        // CARGAR MODULO ANALISIS
+        analisis.cargarModulo();
+    });
+
     configurarBuscador();
     jBtnBuscar1.setVisible(false);
     configurarColumnas();
     configurarAlineacionTabla();
- 
+
     configurarPanelStock();
- 
+
     setLocationRelativeTo(null);
 }
    private void configurarNavegacionConfiguracion() {
@@ -505,74 +532,86 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
                private void cargarDatosStock(String filtro) {
     DefaultTableModel modelo = (DefaultTableModel) jTable2.getModel();
     modelo.setRowCount(0);
- 
-    int todos = 0, agotados = 0, bajo = 0, sobre = 0;
- 
+
+    // Estadísticas solo de activos (para los botones/alertas)
+    int[] stats = gestor.obtenerEstadisticas();
+
+    java.util.HashSet<String> codigosMostrados = new java.util.HashSet<>();
+
     try (BufferedReader br = new BufferedReader(new FileReader("inventario.csv"))) {
         String linea;
         while ((linea = br.readLine()) != null) {
             String[] d = linea.split(",");
-            if (d.length == 10) {
-                int stockActual = Integer.parseInt(d[5].trim());
-                int stockMin    = Integer.parseInt(d[6].trim());
-                todos++;
- 
-                String estadoStock;
-                if (stockActual == 0) {
-                    estadoStock = "AGOTADO"; agotados++;
-                } else if (stockActual < stockMin) {
-                    estadoStock = "STOCK BAJO"; bajo++;
-                } else if (stockMin > 0 && stockActual > stockMin * 3) {
-                    estadoStock = "SOBREINVENTARIO"; sobre++;
-                } else {
-                    estadoStock = "NORMAL";
-                }
- 
-                boolean incluir = filtro.equals("TODOS")
-                    || (filtro.equals("AGOTADO") && estadoStock.equals("AGOTADO"))
-                    || (filtro.equals("BAJO")    && estadoStock.equals("STOCK BAJO"))
-                    || (filtro.equals("SOBRE")   && estadoStock.equals("SOBREINVENTARIO"));
- 
-                if (incluir) {
-                    modelo.addRow(new Object[]{
-                        d[0], d[1],
-                        gestor.codigoANombre(d[2]),
-                        stockActual, stockMin, estadoStock
-                    });
-                }
+            if (d.length != 10) continue;
+
+            String codigo = d[0].trim();
+            if (codigosMostrados.contains(codigo)) continue;
+            codigosMostrados.add(codigo);
+
+            int stockActual = Integer.parseInt(d[5].trim());
+            int stockMin    = Integer.parseInt(d[6].trim());
+            int estado      = Integer.parseInt(d[9].trim());
+
+            // ← Ya NO filtramos por estado aquí, mostramos todos
+            String estadoStock;
+            if (estado != 1) {
+                // Desactivado: igual calculamos su condición de stock
+                // pero lo marcamos como DESACTIVADO para que sea visible
+                estadoStock = "DESACTIVADO";
+            } else if (stockActual == 0) {
+                estadoStock = "AGOTADO";
+            } else if (stockActual < stockMin) {
+                estadoStock = "STOCK BAJO";
+            } else if (stockMin > 0 && stockActual > (stockMin * 3)) {
+                estadoStock = "SOBREINVENTARIO";
+            } else {
+                estadoStock = "NORMAL";
+            }
+
+            // El filtro de botones solo aplica a activos
+            // Si el filtro es TODOS → mostrar todos incluyendo desactivados
+            // Si el filtro es AGOTADO/BAJO/SOBRE → solo activos con esa condición
+            boolean incluir;
+            if (filtro.equals("TODOS")) {
+                incluir = true;
+            } else if (estado != 1) {
+                incluir = false; // desactivados no aparecen en filtros específicos
+            } else {
+                incluir = (filtro.equals("AGOTADO")  && estadoStock.equals("AGOTADO"))
+                       || (filtro.equals("BAJO")     && estadoStock.equals("STOCK BAJO"))
+                       || (filtro.equals("SOBRE")    && estadoStock.equals("SOBREINVENTARIO"));
+            }
+
+            if (incluir) {
+                modelo.addRow(new Object[]{
+                    d[0], d[1],
+                    gestor.codigoANombre(d[2]),
+                    stockActual, stockMin, estadoStock
+                });
             }
         }
     } catch (IOException e) { e.printStackTrace(); }
- 
-    // ── ÚNICO BLOQUE QUE CAMBIA: los setText de los 4 botones ──
- 
+
+    // Botones — sin cambios, siguen con stats de activos
     jButtonProductosT.setText(
-        "<html><center>" +
-        "<span style='font-size:18pt; font-weight:bold;'>" + todos + "</span>" +
-        "<br><span style='font-size:8pt; color:#5F5E5A;'>Todos los productos</span>" +
-        "</center></html>");
- 
+        "<html><center><span style='font-size:18pt; font-weight:bold;'>"
+        + stats[0] + "</span><br>"
+        + "<span style='font-size:8pt; color:#5F5E5A;'>Todos los productos</span></center></html>");
     jButtonProductosA.setText(
-        "<html><center>" +
-        "<span style='font-size:18pt; font-weight:bold; color:#A32D2D;'>" + agotados + "</span>" +
-        "<br><span style='font-size:8pt; color:#5F5E5A;'>Agotados</span>" +
-        "</center></html>");
- 
+        "<html><center><span style='font-size:18pt; font-weight:bold; color:#A32D2D;'>"
+        + stats[1] + "</span><br>"
+        + "<span style='font-size:8pt; color:#5F5E5A;'>Agotados</span></center></html>");
     jButtonProductoB.setText(
-        "<html><center>" +
-        "<span style='font-size:18pt; font-weight:bold; color:#854F0B;'>" + bajo + "</span>" +
-        "<br><span style='font-size:8pt; color:#5F5E5A;'>Stock bajo</span>" +
-        "</center></html>");
- 
+        "<html><center><span style='font-size:18pt; font-weight:bold; color:#854F0B;'>"
+        + stats[2] + "</span><br>"
+        + "<span style='font-size:8pt; color:#5F5E5A;'>Stock bajo</span></center></html>");
     jButtonProductoS.setText(
-        "<html><center>" +
-        "<span style='font-size:18pt; font-weight:bold; color:#993556;'>" + sobre + "</span>" +
-        "<br><span style='font-size:8pt; color:#5F5E5A;'>Sobreinventario</span>" +
-        "</center></html>");
+        "<html><center><span style='font-size:18pt; font-weight:bold; color:#993556;'>"
+        + stats[3] + "</span><br>"
+        + "<span style='font-size:8pt; color:#5F5E5A;'>Sobreinventario</span></center></html>");
 }
                 private void configurarPanelStock() {
 
-    // estilos de los 4 botones
     configurarBotonStock(jButtonProductosT,
         new java.awt.Color(241, 239, 232),
         new java.awt.Color(211, 209, 199),
@@ -590,7 +629,6 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
         new java.awt.Color(244, 192, 209),
         new java.awt.Color(153,  53,  86));
 
-    // configurar tabla jTable2
     DefaultTableModel modeloStock = new DefaultTableModel(
         new String[]{"Código", "Nombre", "Categoría", "Stock actual", "Stock mín.", "Estado"}, 0
     ) {
@@ -610,7 +648,7 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
     for (int i = 0; i < anchos.length; i++)
         jTable2.getColumnModel().getColumn(i).setPreferredWidth(anchos[i]);
 
-    // renderer colores por fila
+    // ── RENDERER CON CASO DESACTIVADO AGREGADO ──
     javax.swing.table.DefaultTableCellRenderer rendererColor =
         new javax.swing.table.DefaultTableCellRenderer() {
         @Override
@@ -620,14 +658,22 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
             super.getTableCellRendererComponent(t, v, sel, foc, row, col);
             if (!sel) {
                 Object estado = t.getModel().getValueAt(row, 5);
-                if ("AGOTADO".equals(estado))
+                if ("AGOTADO".equals(estado)) {
                     setBackground(new java.awt.Color(252, 235, 235));
-                else if ("STOCK BAJO".equals(estado))
+                    setForeground(java.awt.Color.BLACK);
+                } else if ("STOCK BAJO".equals(estado)) {
                     setBackground(new java.awt.Color(250, 238, 218));
-                else if ("SOBREINVENTARIO".equals(estado))
+                    setForeground(java.awt.Color.BLACK);
+                } else if ("SOBREINVENTARIO".equals(estado)) {
                     setBackground(new java.awt.Color(251, 234, 240));
-                else
+                    setForeground(java.awt.Color.BLACK);
+                } else if ("DESACTIVADO".equals(estado)) {
+                    setBackground(new java.awt.Color(220, 220, 220));
+                    setForeground(new java.awt.Color(130, 130, 130));
+                } else {
                     setBackground(java.awt.Color.WHITE);
+                    setForeground(java.awt.Color.BLACK);
+                }
             }
             setHorizontalAlignment(col >= 3 && col <= 4
                 ? javax.swing.SwingConstants.RIGHT
@@ -638,7 +684,6 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
     for (int i = 0; i < 6; i++)
         jTable2.getColumnModel().getColumn(i).setCellRenderer(rendererColor);
 
-    // acciones botones
     jButtonProductosT.addActionListener(e -> {
         cargarDatosStock("TODOS");
         marcarBotonStockActivo(jButtonProductosT);
@@ -656,10 +701,9 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
         marcarBotonStockActivo(jButtonProductoS);
     });
 
-    // cargar datos iniciales
     cargarDatosStock("TODOS");
     marcarBotonStockActivo(jButtonProductosT);
-    }
+}
      
    private void configurarSpinner() {
     javax.swing.JTextField tf =
@@ -793,6 +837,7 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
         jLabel1 = new javax.swing.JLabel();
         btnMov = new javax.swing.JButton();
         btnMov1 = new javax.swing.JButton();
+        btnAnali = new javax.swing.JButton();
         jPanelContenedor = new javax.swing.JPanel();
         jPanelInicio = new javax.swing.JPanel();
         jPanelConfiguracion = new javax.swing.JPanel();
@@ -864,6 +909,31 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
         jTableMovimientos = new javax.swing.JTable();
         jButtonGuardarMov = new javax.swing.JButton();
         jButtonEliminarDeT = new javax.swing.JButton();
+        jPanelAnal = new javax.swing.JPanel();
+        jPanelAnalTabla = new javax.swing.JPanel();
+        jLabel10 = new javax.swing.JLabel();
+        jLabel11 = new javax.swing.JLabel();
+        jLabel12 = new javax.swing.JLabel();
+        jTexFiltroCod = new javax.swing.JTextField();
+        jTexFiltroNom = new javax.swing.JTextField();
+        jLabel13 = new javax.swing.JLabel();
+        jComboFilttoCat = new javax.swing.JComboBox<>();
+        jSeparator4 = new javax.swing.JSeparator();
+        jSeparator5 = new javax.swing.JSeparator();
+        jLabel14 = new javax.swing.JLabel();
+        jLabel15 = new javax.swing.JLabel();
+        jSeparator6 = new javax.swing.JSeparator();
+        jScrollPane5 = new javax.swing.JScrollPane();
+        jTableProductosA = new javax.swing.JTable();
+        jSeparator7 = new javax.swing.JSeparator();
+        jLabel16 = new javax.swing.JLabel();
+        jScrollPane6 = new javax.swing.JScrollPane();
+        jTableHistorialSalidas = new javax.swing.JTable();
+        jPanelAnalGrafica = new javax.swing.JPanel();
+        jLabelReorden = new javax.swing.JLabel();
+        jLabelBajoStock = new javax.swing.JLabel();
+        jLabelSobreInventario = new javax.swing.JLabel();
+        jLabelConsumoTotal = new javax.swing.JLabel();
 
         setDefaultCloseOperation(javax.swing.WindowConstants.EXIT_ON_CLOSE);
         setBackground(new java.awt.Color(240, 242, 245));
@@ -979,6 +1049,30 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
             }
         });
 
+        btnAnali.setBackground(new java.awt.Color(255, 255, 255));
+        btnAnali.setFont(new java.awt.Font("Segoe UI", 1, 12)); // NOI18N
+        btnAnali.setForeground(new java.awt.Color(60, 64, 67));
+        btnAnali.setIcon(new javax.swing.ImageIcon(getClass().getResource("/imagenes/analisis-de-los-datos.png"))); // NOI18N
+        btnAnali.setText("ANALISIS Y REPORTE");
+        btnAnali.setBorderPainted(false);
+        btnAnali.setContentAreaFilled(false);
+        btnAnali.setFocusPainted(false);
+        btnAnali.setHorizontalAlignment(javax.swing.SwingConstants.LEADING);
+        btnAnali.setPreferredSize(new java.awt.Dimension(220, 50));
+        btnAnali.addMouseListener(new java.awt.event.MouseAdapter() {
+            public void mouseEntered(java.awt.event.MouseEvent evt) {
+                btnAnaliMouseEntered(evt);
+            }
+            public void mouseExited(java.awt.event.MouseEvent evt) {
+                btnAnaliMouseExited(evt);
+            }
+        });
+        btnAnali.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                btnAnaliActionPerformed(evt);
+            }
+        });
+
         javax.swing.GroupLayout jPanel1Layout = new javax.swing.GroupLayout(jPanel1);
         jPanel1.setLayout(jPanel1Layout);
         jPanel1Layout.setHorizontalGroup(
@@ -997,7 +1091,8 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
             .addGroup(jPanel1Layout.createSequentialGroup()
                 .addGroup(jPanel1Layout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
                     .addComponent(btnMov, javax.swing.GroupLayout.PREFERRED_SIZE, 236, javax.swing.GroupLayout.PREFERRED_SIZE)
-                    .addComponent(btnMov1, javax.swing.GroupLayout.PREFERRED_SIZE, 236, javax.swing.GroupLayout.PREFERRED_SIZE))
+                    .addComponent(btnMov1, javax.swing.GroupLayout.PREFERRED_SIZE, 236, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(btnAnali, javax.swing.GroupLayout.PREFERRED_SIZE, 236, javax.swing.GroupLayout.PREFERRED_SIZE))
                 .addGap(0, 0, Short.MAX_VALUE))
         );
         jPanel1Layout.setVerticalGroup(
@@ -1017,7 +1112,9 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
                 .addComponent(btnMov, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
                 .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
                 .addComponent(btnMov1, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
-                .addContainerGap(359, Short.MAX_VALUE))
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(btnAnali, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addContainerGap(303, Short.MAX_VALUE))
         );
 
         getContentPane().add(jPanel1, java.awt.BorderLayout.LINE_START);
@@ -1809,6 +1906,204 @@ private javax.swing.JButton botonMenuActivo = null; // menú principal
 
         jPanelContenedor.add(jPanelMovimientos, "card5");
 
+        jLabel10.setFont(new java.awt.Font("Segoe UI", 1, 12)); // NOI18N
+        jLabel10.setForeground(new java.awt.Color(0, 0, 0));
+        jLabel10.setText("Analisis de Inventario");
+
+        jLabel11.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jLabel11.setForeground(new java.awt.Color(0, 0, 0));
+        jLabel11.setText("Codigo");
+
+        jLabel12.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jLabel12.setForeground(new java.awt.Color(0, 0, 0));
+        jLabel12.setText("Nombre");
+
+        jTexFiltroCod.setBorder(javax.swing.BorderFactory.createCompoundBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)), javax.swing.BorderFactory.createEmptyBorder(5, 10, 5, 10)));
+        jTexFiltroCod.setMaximumSize(new java.awt.Dimension(255, 40));
+        jTexFiltroCod.setMinimumSize(new java.awt.Dimension(255, 40));
+        jTexFiltroCod.setPreferredSize(new java.awt.Dimension(255, 40));
+        jTexFiltroCod.addActionListener(new java.awt.event.ActionListener() {
+            public void actionPerformed(java.awt.event.ActionEvent evt) {
+                jTexFiltroCodActionPerformed(evt);
+            }
+        });
+
+        jTexFiltroNom.setBorder(javax.swing.BorderFactory.createCompoundBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)), javax.swing.BorderFactory.createEmptyBorder(5, 10, 5, 10)));
+        jTexFiltroNom.setMaximumSize(new java.awt.Dimension(255, 40));
+        jTexFiltroNom.setMinimumSize(new java.awt.Dimension(255, 40));
+        jTexFiltroNom.setPreferredSize(new java.awt.Dimension(255, 40));
+
+        jLabel13.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jLabel13.setForeground(new java.awt.Color(0, 0, 0));
+        jLabel13.setText("categoria");
+
+        jComboFilttoCat.setBackground(new java.awt.Color(255, 255, 255));
+        jComboFilttoCat.setFont(new java.awt.Font("Segoe UI", 0, 14)); // NOI18N
+        jComboFilttoCat.setForeground(new java.awt.Color(51, 51, 51));
+        jComboFilttoCat.setModel(new javax.swing.DefaultComboBoxModel<>(new String[] { "Todos", "Computadoras y laptops", "Componentes de PC", "Periféricos", "Monitores", "Impresoras y escáneres", "Redes y conectividad", "Almacenamiento", "Accesorios para celulares", "Smartphones y tablets", "Audio y sonido", "Video y entretenimiento", "Energía y protección", "Cámaras y videovigilancia", "Gadgets y wearables", "Consumibles" }));
+        jComboFilttoCat.setBorder(javax.swing.BorderFactory.createLineBorder(new java.awt.Color(204, 204, 204)));
+        jComboFilttoCat.setMinimumSize(new java.awt.Dimension(255, 40));
+        jComboFilttoCat.setPreferredSize(new java.awt.Dimension(255, 40));
+
+        jLabel14.setText("Productos");
+
+        jLabel15.setText("Filtro");
+
+        jTableProductosA.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane5.setViewportView(jTableProductosA);
+
+        jLabel16.setText("Historial de consumo");
+
+        jTableHistorialSalidas.setModel(new javax.swing.table.DefaultTableModel(
+            new Object [][] {
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null},
+                {null, null, null, null}
+            },
+            new String [] {
+                "Title 1", "Title 2", "Title 3", "Title 4"
+            }
+        ));
+        jScrollPane6.setViewportView(jTableHistorialSalidas);
+
+        javax.swing.GroupLayout jPanelAnalTablaLayout = new javax.swing.GroupLayout(jPanelAnalTabla);
+        jPanelAnalTabla.setLayout(jPanelAnalTablaLayout);
+        jPanelAnalTablaLayout.setHorizontalGroup(
+            jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanelAnalTablaLayout.createSequentialGroup()
+                .addGroup(jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jSeparator5)
+                    .addGroup(javax.swing.GroupLayout.Alignment.LEADING, jPanelAnalTablaLayout.createSequentialGroup()
+                        .addComponent(jLabel11, javax.swing.GroupLayout.PREFERRED_SIZE, 62, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jTexFiltroCod, javax.swing.GroupLayout.PREFERRED_SIZE, 89, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel12, javax.swing.GroupLayout.PREFERRED_SIZE, 66, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jTexFiltroNom, javax.swing.GroupLayout.PREFERRED_SIZE, 102, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jLabel13, javax.swing.GroupLayout.PREFERRED_SIZE, 75, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                        .addComponent(jComboFilttoCat, javax.swing.GroupLayout.PREFERRED_SIZE, 108, javax.swing.GroupLayout.PREFERRED_SIZE)))
+                .addGap(0, 13, Short.MAX_VALUE))
+            .addGroup(jPanelAnalTablaLayout.createSequentialGroup()
+                .addContainerGap()
+                .addGroup(jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                    .addGroup(jPanelAnalTablaLayout.createSequentialGroup()
+                        .addGroup(jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jScrollPane5)
+                            .addComponent(jSeparator4, javax.swing.GroupLayout.Alignment.TRAILING)
+                            .addGroup(jPanelAnalTablaLayout.createSequentialGroup()
+                                .addGroup(jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                                    .addComponent(jLabel14, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                                    .addComponent(jLabel10, javax.swing.GroupLayout.PREFERRED_SIZE, 391, javax.swing.GroupLayout.PREFERRED_SIZE))
+                                .addGap(0, 0, Short.MAX_VALUE)))
+                        .addContainerGap())
+                    .addComponent(jSeparator6, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addComponent(jScrollPane6)
+                    .addComponent(jSeparator7, javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanelAnalTablaLayout.createSequentialGroup()
+                        .addGroup(jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+                            .addComponent(jLabel16, javax.swing.GroupLayout.PREFERRED_SIZE, 65, javax.swing.GroupLayout.PREFERRED_SIZE)
+                            .addComponent(jLabel15, javax.swing.GroupLayout.PREFERRED_SIZE, 47, javax.swing.GroupLayout.PREFERRED_SIZE))
+                        .addGap(0, 0, Short.MAX_VALUE))))
+        );
+        jPanelAnalTablaLayout.setVerticalGroup(
+            jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanelAnalTablaLayout.createSequentialGroup()
+                .addComponent(jLabel10)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel15)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator5, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanelAnalTablaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabel11, javax.swing.GroupLayout.PREFERRED_SIZE, 25, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jTexFiltroCod, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel12, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jTexFiltroNom, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabel13, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                    .addComponent(jComboFilttoCat, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(39, 39, 39)
+                .addComponent(jSeparator4, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel14)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator6, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane5, javax.swing.GroupLayout.PREFERRED_SIZE, 213, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jLabel16)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jSeparator7, javax.swing.GroupLayout.PREFERRED_SIZE, 10, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.RELATED)
+                .addComponent(jScrollPane6, javax.swing.GroupLayout.PREFERRED_SIZE, 213, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGap(0, 41, Short.MAX_VALUE))
+        );
+
+        javax.swing.GroupLayout jPanelAnalGraficaLayout = new javax.swing.GroupLayout(jPanelAnalGrafica);
+        jPanelAnalGrafica.setLayout(jPanelAnalGraficaLayout);
+        jPanelAnalGraficaLayout.setHorizontalGroup(
+            jPanelAnalGraficaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+        jPanelAnalGraficaLayout.setVerticalGroup(
+            jPanelAnalGraficaLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGap(0, 0, Short.MAX_VALUE)
+        );
+
+        javax.swing.GroupLayout jPanelAnalLayout = new javax.swing.GroupLayout(jPanelAnal);
+        jPanelAnal.setLayout(jPanelAnalLayout);
+        jPanelAnalLayout.setHorizontalGroup(
+            jPanelAnalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanelAnalLayout.createSequentialGroup()
+                .addComponent(jPanelAnalTabla, javax.swing.GroupLayout.PREFERRED_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.PREFERRED_SIZE)
+                .addGroup(jPanelAnalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.TRAILING)
+                    .addGroup(jPanelAnalLayout.createSequentialGroup()
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jPanelAnalGrafica, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                        .addContainerGap())
+                    .addGroup(jPanelAnalLayout.createSequentialGroup()
+                        .addGap(18, 18, 18)
+                        .addComponent(jLabelConsumoTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabelBajoStock, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabelReorden, javax.swing.GroupLayout.PREFERRED_SIZE, 126, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                        .addComponent(jLabelSobreInventario, javax.swing.GroupLayout.PREFERRED_SIZE, 128, javax.swing.GroupLayout.PREFERRED_SIZE)
+                        .addContainerGap(35, Short.MAX_VALUE))))
+        );
+        jPanelAnalLayout.setVerticalGroup(
+            jPanelAnalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.LEADING)
+            .addGroup(jPanelAnalLayout.createSequentialGroup()
+                .addContainerGap()
+                .addComponent(jPanelAnalTabla, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addContainerGap())
+            .addGroup(jPanelAnalLayout.createSequentialGroup()
+                .addComponent(jPanelAnalGrafica, javax.swing.GroupLayout.DEFAULT_SIZE, javax.swing.GroupLayout.DEFAULT_SIZE, Short.MAX_VALUE)
+                .addPreferredGap(javax.swing.LayoutStyle.ComponentPlacement.UNRELATED)
+                .addGroup(jPanelAnalLayout.createParallelGroup(javax.swing.GroupLayout.Alignment.BASELINE)
+                    .addComponent(jLabelBajoStock, javax.swing.GroupLayout.PREFERRED_SIZE, 113, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabelConsumoTotal, javax.swing.GroupLayout.PREFERRED_SIZE, 113, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabelReorden, javax.swing.GroupLayout.PREFERRED_SIZE, 113, javax.swing.GroupLayout.PREFERRED_SIZE)
+                    .addComponent(jLabelSobreInventario, javax.swing.GroupLayout.PREFERRED_SIZE, 113, javax.swing.GroupLayout.PREFERRED_SIZE))
+                .addGap(45, 45, 45))
+        );
+
+        jPanelContenedor.add(jPanelAnal, "card6");
+
         getContentPane().add(jPanelContenedor, java.awt.BorderLayout.CENTER);
 
         pack();
@@ -2411,6 +2706,24 @@ private void limpiarMovimiento() {
         // TODO add your handling code here:
         cargarPanelConfiguracion();
     }//GEN-LAST:event_jButtonCanelarActionPerformed
+
+    private void btnAnaliMouseEntered(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnAnaliMouseEntered
+        // TODO add your handling code here:
+    }//GEN-LAST:event_btnAnaliMouseEntered
+
+    private void btnAnaliMouseExited(java.awt.event.MouseEvent evt) {//GEN-FIRST:event_btnAnaliMouseExited
+        // TODO add your handling code here:
+    }//GEN-LAST:event_btnAnaliMouseExited
+
+    private void btnAnaliActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_btnAnaliActionPerformed
+        // TODO add your handling code here:
+    }//GEN-LAST:event_btnAnaliActionPerformed
+
+    private void jTexFiltroCodActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jTexFiltroCodActionPerformed
+        // TODO add your handling code here:
+        jTexFiltroNom.requestFocus();
+
+    }//GEN-LAST:event_jTexFiltroCodActionPerformed
 private void filtrarEnTiempoReal() {
     String texto = jTexBuscaCod.getText();
 
@@ -2458,6 +2771,7 @@ private void filtrarEnTiempoReal() {
 
     // Variables declaration - do not modify//GEN-BEGIN:variables
     private javax.swing.JLabel JlTitulo;
+    private javax.swing.JButton btnAnali;
     private javax.swing.JButton btnCatalogo;
     private javax.swing.JButton btnInicio;
     private javax.swing.JButton btnMov;
@@ -2481,7 +2795,15 @@ private void filtrarEnTiempoReal() {
     private javax.swing.JButton jButtonProductosT;
     private javax.swing.JButton jButtonRegisM;
     private javax.swing.JComboBox<String> jComboBoxTipo;
+    private javax.swing.JComboBox<String> jComboFilttoCat;
     private javax.swing.JLabel jLabel1;
+    private javax.swing.JLabel jLabel10;
+    private javax.swing.JLabel jLabel11;
+    private javax.swing.JLabel jLabel12;
+    private javax.swing.JLabel jLabel13;
+    private javax.swing.JLabel jLabel14;
+    private javax.swing.JLabel jLabel15;
+    private javax.swing.JLabel jLabel16;
     private javax.swing.JLabel jLabel2;
     private javax.swing.JLabel jLabel3;
     private javax.swing.JLabel jLabel4;
@@ -2490,8 +2812,10 @@ private void filtrarEnTiempoReal() {
     private javax.swing.JLabel jLabel7;
     private javax.swing.JLabel jLabel8;
     private javax.swing.JLabel jLabel9;
+    private javax.swing.JLabel jLabelBajoStock;
     private javax.swing.JLabel jLabelCantidad;
     private javax.swing.JLabel jLabelCodig;
+    private javax.swing.JLabel jLabelConsumoTotal;
     private javax.swing.JLabel jLabelFecha;
     private javax.swing.JLabel jLabelMotivo;
     private javax.swing.JLabel jLabelNMov;
@@ -2499,8 +2823,13 @@ private void filtrarEnTiempoReal() {
     private javax.swing.JLabel jLabelNMov2;
     private javax.swing.JLabel jLabelNMov3;
     private javax.swing.JLabel jLabelNombreP;
+    private javax.swing.JLabel jLabelReorden;
+    private javax.swing.JLabel jLabelSobreInventario;
     private javax.swing.JLabel jLabelTipo;
     private javax.swing.JPanel jPanel1;
+    private javax.swing.JPanel jPanelAnal;
+    private javax.swing.JPanel jPanelAnalGrafica;
+    private javax.swing.JPanel jPanelAnalTabla;
     private javax.swing.JPanel jPanelBotonesStok;
     private javax.swing.JPanel jPanelCatalogo;
     private javax.swing.JPanel jPanelConfigInter;
@@ -2518,16 +2847,26 @@ private void filtrarEnTiempoReal() {
     private javax.swing.JScrollPane jScrollPane2;
     private javax.swing.JScrollPane jScrollPane3;
     private javax.swing.JScrollPane jScrollPane4;
+    private javax.swing.JScrollPane jScrollPane5;
+    private javax.swing.JScrollPane jScrollPane6;
     private javax.swing.JSeparator jSeparator1;
     private javax.swing.JSeparator jSeparator2;
     private javax.swing.JSeparator jSeparator3;
+    private javax.swing.JSeparator jSeparator4;
+    private javax.swing.JSeparator jSeparator5;
+    private javax.swing.JSeparator jSeparator6;
+    private javax.swing.JSeparator jSeparator7;
     private javax.swing.JSpinner jSpinner1;
     private javax.swing.JTable jTable1;
     private javax.swing.JTable jTable2;
     private javax.swing.JTable jTableHistorial;
+    private javax.swing.JTable jTableHistorialSalidas;
     private javax.swing.JTable jTableMovimientos;
+    private javax.swing.JTable jTableProductosA;
     private javax.swing.JTextField jTexBuscaCod;
     private javax.swing.JTextField jTexBuscaCodHistorial;
+    private javax.swing.JTextField jTexFiltroCod;
+    private javax.swing.JTextField jTexFiltroNom;
     private javax.swing.JTextField jTextCodBuscar;
     private javax.swing.JTextField jTextFCostoMantenimiento;
     private javax.swing.JTextField jTextFCostoPedido;

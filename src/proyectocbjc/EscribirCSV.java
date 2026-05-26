@@ -160,186 +160,448 @@ public class EscribirCSV {
         } catch (IOException e) { }
         return false;
     }
+    
     public String obtenerSiguienteMovimiento() {
-    File file = new File("encabezado.csv"); // archivo de movimientos
+        File file = new File("encabezado.csv");
 
-    int ultimo = 0;
+        int ultimo = 0;
 
-    if (!file.exists()) {
-        return "0001"; // si no existe empieza en 1
-    }
+        if (!file.exists()) {
+            return "0001";
+        }
 
-    try (BufferedReader br = new BufferedReader(new FileReader(file))) {
-        String linea;
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String linea;
 
-        while ((linea = br.readLine()) != null) {
-            String[] datos = linea.split(",");
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
 
-            if (datos.length > 0) {
-                try {
-                    int num = Integer.parseInt(datos[0]);
-                    if (num > ultimo) {
-                        ultimo = num;
+                if (datos.length > 0) {
+                    try {
+                        int num = Integer.parseInt(datos[0]);
+                        if (num > ultimo) {
+                            ultimo = num;
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignora errores
                     }
-                } catch (NumberFormatException e) {
-                    // ignora errores
                 }
             }
+
+        } catch (IOException e) {
+            e.printStackTrace();
         }
 
-    } catch (IOException e) {
-        e.printStackTrace();
+        ultimo++;
+
+        return String.format("%04d", ultimo);
     }
-
-    ultimo++;
-
-    return String.format("%04d", ultimo); // 0001, 0002, etc
-}
+    
     public void guardarEncabezado(String noMov, String fecha, String tipo, String motivo) throws IOException {
+        File file = new File("encabezado.csv");
 
-    File file = new File("encabezado.csv");
-
-    try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
-        pw.println(noMov + "," + fecha + "," + tipo + "," + motivo);
+        try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+            pw.println(noMov + "," + fecha + "," + tipo + "," + motivo);
+        }
     }
-}
+    
     public void guardarDetalle(String noMov, String codigo, int cantidad) throws IOException {
+        File file = new File("detalle.csv");
 
-    File file = new File("detalle.csv");
-
-    try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
-        pw.println(noMov + "," + codigo + "," + cantidad);
+        try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+            pw.println(noMov + "," + codigo + "," + cantidad);
+        }
     }
-}
+    
     public String obtenerCodigoPorNombre(String nombreBuscado) {
+        File file = new File(archivo);
 
-    File file = new File(archivo);
+        if (!file.exists()) return "";
 
-    if (!file.exists()) return "";
+        try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            String linea;
 
-    try (BufferedReader br = new BufferedReader(new FileReader(file))) {
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
 
-        String linea;
+                if (datos.length >= 2) {
+                    String codigo = datos[0];
+                    String nombre = datos[1];
 
-        while ((linea = br.readLine()) != null) {
+                    if (nombre.equalsIgnoreCase(nombreBuscado)) {
+                        return codigo;
+                    }
+                }
+            }
 
-            String[] datos = linea.split(",");
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
 
-            if (datos.length >= 2) {
+        return "";
+    }
+    
+    public void actualizarStock(String id, int delta) throws IOException {
+        List<String> lineas = new ArrayList<>();
 
-                String codigo = datos[0];
-                String nombre = datos[1];
-
-                if (nombre.equalsIgnoreCase(nombreBuscado)) {
-                    return codigo;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
+                    int stockActual = Integer.parseInt(datos[5].trim());
+                    int nuevoStock = stockActual + delta;
+                    if (nuevoStock < 0) nuevoStock = 0;
+                    datos[5] = String.valueOf(nuevoStock);
+                    lineas.add(String.join(",", datos));
+                } else {
+                    lineas.add(linea);
                 }
             }
         }
 
-    } catch (IOException e) {
-        e.printStackTrace();
+        try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
+            for (String l : lineas) pw.println(l);
+        }
     }
+    
+    public int[] obtenerStockYEstado(String id) {
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
+                    int stockActual = Integer.parseInt(datos[5].trim());
+                    int stockMin    = Integer.parseInt(datos[6].trim());
+                    int estado      = Integer.parseInt(datos[9].trim());
+                    return new int[]{stockActual, stockMin, estado};
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return new int[]{0, 0, 1};
+    }
+    
+    public void reemplazarStock(String id, int nuevoStock) throws IOException {
+        if (nuevoStock < 0) {
+            nuevoStock = 0;
+        }
 
-    return "";
-}
-    public void actualizarStock(String id, int delta) throws IOException {
-    List<String> lineas = new ArrayList<>();
+        List<String> lineas = new ArrayList<>();
 
-    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
-        String linea;
-        while ((linea = br.readLine()) != null) {
-            String[] datos = linea.split(",");
-            if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
-                int stockActual = Integer.parseInt(datos[5].trim());
-                int nuevoStock = stockActual + delta;
-                if (nuevoStock < 0) nuevoStock = 0; // seguridad
-                datos[5] = String.valueOf(nuevoStock);
-                lineas.add(String.join(",", datos));
-            } else {
-                lineas.add(linea);
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
+                    datos[5] = String.valueOf(nuevoStock);
+                    lineas.add(String.join(",", datos));
+                } else {
+                    lineas.add(linea);
+                }
+            }
+        }
+
+        try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
+            for (String l : lineas) pw.println(l);
+        }
+    }
+    
+    public void guardarDetalleLote(List<String> detalles) throws IOException {
+        File file = new File("detalle.csv");
+
+        try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
+            for (String det : detalles) {
+                pw.println(det);
             }
         }
     }
-
-    try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
-        for (String l : lineas) pw.println(l);
+    
+    public boolean todosLosCodigosExisten(List<String> codigos) {
+        for (String codigo : codigos) {
+            if (!existeCodigo(codigo)) {
+                return false;
+            }
+        }
+        return true;
     }
-}
-        public int[] obtenerStockYEstado(String id) {
-    // retorna [stockActual, stockMin, estado]
+    
+    public boolean validarDetalles(List<String> codigos, DefaultTableModel modelo) {
+        for (int i = 0; i < modelo.getRowCount(); i++) {
+            int cantidad = Integer.parseInt(modelo.getValueAt(i, 0).toString());
+            String codigo = codigos.get(i);
+
+            if (cantidad <= 0) return false;
+            if (!existeCodigo(codigo)) return false;
+        }
+        return true;
+    }
+
+    // ========== MÉTODOS PARA ESTADÍSTICAS DE INVENTARIO ==========
+
+    /**
+     * Cuenta el total de productos ACTIVOS (estado = 1)
+     */
+    public int contarTotalProductos() {
+        int contador = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10) {
+                    try {
+                        int estado = Integer.parseInt(datos[9].trim());
+                        if (estado == 1) {
+                            contador++;
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignorar líneas con formato incorrecto
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return contador;
+    }
+
+    /**
+     * Cuenta productos AGOTADOS (stock actual = 0 y estado = 1)
+     */
+    public int contarAgotados() {
+        int contador = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10) {
+                    try {
+                        int stockActual = Integer.parseInt(datos[5].trim());
+                        int estado = Integer.parseInt(datos[9].trim());
+                        if (estado == 1 && stockActual == 0) {
+                            contador++;
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignorar
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return contador;
+    }
+
+    /**
+     * Cuenta productos con STOCK BAJO (0 < stock actual < stock mínimo, y estado = 1)
+     */
+    public int contarStockBajo() {
+        int contador = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10) {
+                    try {
+                        int stockActual = Integer.parseInt(datos[5].trim());
+                        int stockMin = Integer.parseInt(datos[6].trim());
+                        int estado = Integer.parseInt(datos[9].trim());
+                        if (estado == 1 && stockActual > 0 && stockActual < stockMin) {
+                            contador++;
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignorar
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return contador;
+    }
+
+    /**
+     * Cuenta productos con SOBREINVENTARIO (stock actual > 3 × stock mínimo, y estado = 1)
+     */
+    public int contarSobreinventario() {
+        int contador = 0;
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10) {
+                    try {
+                        int stockActual = Integer.parseInt(datos[5].trim());
+                        int stockMin = Integer.parseInt(datos[6].trim());
+                        int estado = Integer.parseInt(datos[9].trim());
+                        if (estado == 1 && stockActual > (stockMin * 3)) {
+                            contador++;
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignorar
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+        return contador;
+    }
+
+    /**
+     * Método eficiente que retorna TODAS las estadísticas de una vez
+     * @return int[]{totalActivos, agotados, stockBajo, sobreinventario}
+     */
+    public int[] obtenerEstadisticas() {
+    int total = 0, agotados = 0, stockBajo = 0, sobreinventario = 0;
+
     try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
         String linea;
+        java.util.HashSet<String> vistos = new java.util.HashSet<>();
+
         while ((linea = br.readLine()) != null) {
             String[] datos = linea.split(",");
-            if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
+            if (datos.length != 10) continue;
+
+            String codigo = datos[0].trim();
+            if (vistos.contains(codigo)) continue;
+            vistos.add(codigo);
+
+            try {
+                int estado = Integer.parseInt(datos[9].trim());
+
+                // ← TODOS se cuentan, activos y desactivados
+                total++;
+
+                // Las alertas (agotado, bajo, sobre) solo aplican a activos
+                if (estado != 1) continue;
+
                 int stockActual = Integer.parseInt(datos[5].trim());
                 int stockMin    = Integer.parseInt(datos[6].trim());
-                int estado      = Integer.parseInt(datos[9].trim()); // 1=activo 0=desactivado
-                return new int[]{stockActual, stockMin, estado};
+
+                if (stockActual == 0) {
+                    agotados++;
+                } else if (stockActual < stockMin) {
+                    stockBajo++;
+                } else if (stockMin > 0 && stockActual > (stockMin * 3)) {
+                    sobreinventario++;
+                }
+
+            } catch (NumberFormatException e) { /* ignorar */ }
+        }
+    } catch (IOException e) { e.printStackTrace(); }
+
+    return new int[]{total, agotados, stockBajo, sobreinventario};
+}
+
+    /**
+     * Obtiene modelo con todos los productos AGOTADOS (stock = 0)
+     */
+    public DefaultTableModel obtenerAgotadosModelo() {
+        DefaultTableModel modelo = new DefaultTableModel(getColumnas(), 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
             }
-        }
-    } catch (IOException e) {
-        e.printStackTrace();
-    }
-    return new int[]{0, 0, 1}; // default seguro
-}
-           public void reemplazarStock(String id, int nuevoStock) throws IOException {
+        };
 
-    if (nuevoStock < 0) {
-        nuevoStock = 0;
-    }
-
-    List<String> lineas = new ArrayList<>();
-
-    try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
-        String linea;
-        while ((linea = br.readLine()) != null) {
-            String[] datos = linea.split(",");
-            if (datos.length == 10 && datos[0].equalsIgnoreCase(id)) {
-                datos[5] = String.valueOf(nuevoStock);
-                lineas.add(String.join(",", datos));
-            } else {
-                lineas.add(linea);
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10) {
+                    try {
+                        int stockActual = Integer.parseInt(datos[5].trim());
+                        int estado = Integer.parseInt(datos[9].trim());
+                        
+                        if (estado == 1 && stockActual == 0) {
+                            datos[2] = codigoANombre(datos[2]);
+                            datos[9] = numeroAEstado(datos[9]);
+                            modelo.addRow(datos);
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignorar
+                    }
+                }
             }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+        return modelo;
     }
 
-    try (PrintWriter pw = new PrintWriter(new FileWriter(archivo))) {
-        for (String l : lineas) pw.println(l);
-    }
-}
-            public void guardarDetalleLote(List<String> detalles) throws IOException {
+    /**
+     * Obtiene modelo con todos los productos con STOCK BAJO (0 < actual < mínimo)
+     */
+    public DefaultTableModel obtenerStockBajoModelo() {
+        DefaultTableModel modelo = new DefaultTableModel(getColumnas(), 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
 
-    File file = new File("detalle.csv");
-
-    try (PrintWriter pw = new PrintWriter(new FileWriter(file, true))) {
-        for (String det : detalles) {
-            pw.println(det);
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10) {
+                    try {
+                        int stockActual = Integer.parseInt(datos[5].trim());
+                        int stockMin = Integer.parseInt(datos[6].trim());
+                        int estado = Integer.parseInt(datos[9].trim());
+                        
+                        if (estado == 1 && stockActual > 0 && stockActual < stockMin) {
+                            datos[2] = codigoANombre(datos[2]);
+                            datos[9] = numeroAEstado(datos[9]);
+                            modelo.addRow(datos);
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignorar
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+        return modelo;
     }
-}
-            public boolean todosLosCodigosExisten(List<String> codigos) {
 
-    for (String codigo : codigos) {
-        if (!existeCodigo(codigo)) {
-            return false;
+    /**
+     * Obtiene modelo con todos los productos con SOBREINVENTARIO (actual > 3 × mínimo)
+     */
+    public DefaultTableModel obtenerSobreinventarioModelo() {
+        DefaultTableModel modelo = new DefaultTableModel(getColumnas(), 0) {
+            @Override
+            public boolean isCellEditable(int row, int column) {
+                return false;
+            }
+        };
+
+        try (BufferedReader br = new BufferedReader(new FileReader(archivo))) {
+            String linea;
+            while ((linea = br.readLine()) != null) {
+                String[] datos = linea.split(",");
+                if (datos.length == 10) {
+                    try {
+                        int stockActual = Integer.parseInt(datos[5].trim());
+                        int stockMin = Integer.parseInt(datos[6].trim());
+                        int estado = Integer.parseInt(datos[9].trim());
+                        
+                        if (estado == 1 && stockActual > (stockMin * 3)) {
+                            datos[2] = codigoANombre(datos[2]);
+                            datos[9] = numeroAEstado(datos[9]);
+                            modelo.addRow(datos);
+                        }
+                    } catch (NumberFormatException e) {
+                        // ignorar
+                    }
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
         }
+        return modelo;
     }
-
-    return true;
-}
-            public boolean validarDetalles(List<String> codigos, DefaultTableModel modelo) {
-
-    for (int i = 0; i < modelo.getRowCount(); i++) {
-
-        int cantidad = Integer.parseInt(modelo.getValueAt(i, 0).toString());
-        String codigo = codigos.get(i);
-
-        if (cantidad <= 0) return false;
-
-        if (!existeCodigo(codigo)) return false;
-    }
-
-    return true;
-}
 }
